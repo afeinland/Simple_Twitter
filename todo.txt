@@ -1,0 +1,3 @@
+save a user's messages, hard coded list
+
+how to mark unread? see server description 4
