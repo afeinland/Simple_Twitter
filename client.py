@@ -45,6 +45,11 @@ def login():
         print 'Send failed'
         sys.exit()
 
+def post_a_tweet():
+    tweet = raw_input('Tweet text: ')
+    s.sendall(tweet)
+    hashtags = raw_input('Hashtag: ')
+    s.sendall(hashtags)
 
     #Server sends action request, e.g. LOGIN, or MENU, or WELCOME
         # not sure if this is a good way to do things.
@@ -61,14 +66,17 @@ while 1:
 
     # send input to server
     user_input = raw_input('Input: ')
-    s.sendall(user_input)
+    s.sendall(user_input) # send client's menu option to server
 
+    # do local work based on menu option. Server should be waiting for
+        # client to send the appropriate data given the selected menu option.
     if user_input == '1': # view offline messages
         print 'vom'
     elif user_input == '2': # edit subscriptions
         print 'es'
     elif user_input == '3': # post a tweet
         print 'pat'
+        post_a_tweet()
     elif user_input == '4': # hashtag search
         print 'hts'
     elif user_input == '5': # logout

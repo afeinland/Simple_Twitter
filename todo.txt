@@ -1,3 +1,27 @@
+TODO:
+- client:
+[x] 1
+[ ] 2
+[ ] 3
+[ ] 4
+[ ] 5
+[ ] 6
+[ ] 7
+[ ] 8
+[ ] 9
+- server
+[x] 1
+[ ] 2
+[ ] 3
+[ ] 4
+[ ] 5
+
+
 save a user's messages, hard coded list
 
 how to mark unread? see server description 4
+
+need dictionary for:
+key -> value
+user -> tweets
+hashtag -> tweets
