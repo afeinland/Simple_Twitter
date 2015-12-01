@@ -54,6 +54,13 @@ def post_a_tweet():
     #Server sends action request, e.g. LOGIN, or MENU, or WELCOME
         # not sure if this is a good way to do things.
 
+def hashtag_search():
+    ht = raw_input('Enter hashtag to search: ')
+    s.sendall(ht) # send hashtag to server
+    tweets = s.recv(4096) # server returns lsit of tweets with that hashtag
+    print tweets
+
+
 login()
 
 while 1:
@@ -79,6 +86,7 @@ while 1:
         post_a_tweet()
     elif user_input == '4': # hashtag search
         print 'hts'
+        hashtag_search()
     elif user_input == '5': # logout
         print 'Logging out'
 

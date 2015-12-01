@@ -1,6 +1,8 @@
 import socket
 import sys
 from thread import *
+from collections import defaultdict
+
 
 
 
@@ -22,15 +24,21 @@ user_subs = {'u1' : [], 'u2' : [], 'u3' : [], 'u4' : [], 'u5' : []}
 
 # Dictionaries for Tweets
 tweets_by_user = {'u1' : [], 'u2' : [], 'u3' : [], 'u4' : [], 'u5' : []}
-tweets_by_hashtag = dict()
+tweets_by_hashtag = defaultdict(list)
 #TODO dictionary for offline tweets, move to TBU/TBH when user logs on?
 # No. All generated tweets get put into the TBU and TBH dicts. Only if a user is offline
 # and a subscription of his gets a tweet should the tweet be added to the offline dict.
 
-def printalltweetsbyuser():
+def printalltweetsbyuser(): #debug
     for key in tweets_by_user:
         print key
         for tweet in tweets_by_user[key]:
+            print tweet
+
+def printalltweetsbyht(): #debug
+    for key in tweets_by_hashtag:
+        print key
+        for tweet in tweets_by_hashtag[key]:
             print tweet
 
 
@@ -71,21 +79,38 @@ def login(conn):
     return ret
 
 def menu(conn):
-    msg = 'Choose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Logout\n\n Type \'m\' to bring up this menu.' # TODO 'm' to bring up menu
+    msg = '\nChoose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Logout\n\n Type \'m\' to bring up this menu.' # TODO 'm' to bring up menu
     conn.sendall(msg) # send menu to client.
     data = conn.recv(1024) # get reply from client.
     return data
 
-def post_a_tweet(user):
+def post_a_tweet(user, conn):
 # TODO tweet at a user and hashtags
 # TODO also, offline tweets
     tweet = conn.recv(1024) # recv tweet from client
     tweet = user + ': ' + tweet # prefix tweet with the user who generated it.
-    print tweet
     hashtag = conn.recv(1024) # recv hashtag from client
+    print 'New tweet/hashtag: ' + tweet + '/' + hashtag
     tweets_by_user[user].append(tweet)
-    tweets_by_hashtag[hashtag] = tweet
-    return 0
+    tweets_by_hashtag[hashtag].append(tweet)
+
+def get_tweets_by_ht(ht): # returns list of tweets with hashtag ht
+    ret = []
+    for value in tweets_by_hashtag[ht]:
+        ret.append(value)
+    return ret
+
+def hashtag_search(conn): # sends to client at connection conn a list of tweets with client defined hashtag
+# ask client for ht
+    ht = conn.recv(1024)
+# search for the ht
+    tweets = get_tweets_by_ht(ht)
+# send tweets to client
+    if not tweets:
+        conn.sendall('Hashtag not found\n')
+    else:
+        conn.sendall(''.join(tweets))
+    
 
 # Socket creation, bind, listen
 HOST = ''   # Symbolic name meaning all available interfaces
@@ -130,10 +155,9 @@ def clientthread(conn):
             reply = client_command  + ' ...OK\n'
             conn.sendall(reply)
         elif client_command == '3': # post a tweet
-            post_a_tweet(this_user)
+            post_a_tweet(this_user, conn)
         elif client_command == '4': # hastag search
-            reply = client_command  + ' ...OK\n'
-            conn.sendall(reply)
+            hashtag_search(conn)
         elif client_command == '5': # logout
             print this_user + ' logged out'
             reply = "Goodbye!"
@@ -141,9 +165,10 @@ def clientthread(conn):
             conn.sendall(reply)
             conn.close
             break
-        else:
+        elif client_command == 'pbu':
             printalltweetsbyuser() # debug
-            break
+        elif client_command == 'pbh':
+            printalltweetsbyht() # debug
 
 #now keep talking with the client
 while 1:
