@@ -12,7 +12,7 @@ except socket.error:
 
 print 'Socket Created'
 
-host = 'localhost'
+host = '10.0.0.4'
 port = 8889
 
 try:
@@ -45,20 +45,41 @@ def login():
         print 'Send failed'
         sys.exit()
 
+    reply = s.recv(4096) # recv login reply from server
+
 def post_a_tweet():
     tweet = raw_input('Tweet text: ')
     s.sendall(tweet)
     hashtags = raw_input('Hashtag: ')
     s.sendall(hashtags)
 
-    #Server sends action request, e.g. LOGIN, or MENU, or WELCOME
-        # not sure if this is a good way to do things.
-
 def hashtag_search():
     ht = raw_input('Enter hashtag to search: ')
     s.sendall(ht) # send hashtag to server
     tweets = s.recv(4096) # server returns lsit of tweets with that hashtag
     print tweets
+
+def add_sub():
+    reply = s.recv(4096) # server asks for a user to add or remove.
+    print reply
+    selected_user = raw_input('User: ')
+    s.sendall(selected_user)
+
+def remove_sub():
+    reply = s.recv(4096) # server asks for a user to add or remove.
+    print reply
+    selected_user = raw_input('User: ')
+    s.sendall(selected_user)
+
+def edit_subs():
+    reply = s.recv(4096) # server asks whether to add or remove a user.
+    print reply
+    reply = raw_input('Reply: ')
+    s.sendall(reply)
+    if reply == 'a':
+        add_sub()
+    elif reply == 'r':
+        remove_sub()
 
 
 login()
@@ -72,23 +93,24 @@ while 1:
         break;
 
     # send input to server
-    user_input = raw_input('Input: ')
+    user_input = raw_input('Option: ')
     s.sendall(user_input) # send client's menu option to server
 
     # do local work based on menu option. Server should be waiting for
         # client to send the appropriate data given the selected menu option.
     if user_input == '1': # view offline messages
-        print 'vom'
+        continue
     elif user_input == '2': # edit subscriptions
-        print 'es'
+        edit_subs()
     elif user_input == '3': # post a tweet
-        print 'pat'
         post_a_tweet()
     elif user_input == '4': # hashtag search
-        print 'hts'
         hashtag_search()
     elif user_input == '5': # logout
         print 'Logging out'
+    else:
+        reply = s.recv(4096)
+        print reply
 
 
 s.close()

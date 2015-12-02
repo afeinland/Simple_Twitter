@@ -6,7 +6,7 @@ from collections import defaultdict
 
 
 
-# User Accounts
+# User accounts
 u1 = 'user1'
 p1 = 'pass1'
 u2 = 'user2'
@@ -17,17 +17,21 @@ u4 = 'user4'
 p4 = 'pass4'
 u5 = 'user5'
 p5 = 'pass5'
-online_users = {'u1' : False, 'u2' : False, 'u3' : False, 'u4' : False, 'u5' : False}
+online_users = {'u1' : False, 'u2' : False, 'u3' : False, 'u4' : False, 'u5' : False, 'null_user' : False}
 
 # User subscriptions
 user_subs = {'u1' : [], 'u2' : [], 'u3' : [], 'u4' : [], 'u5' : []}
 
-# Dictionaries for Tweets
+# Connections to each user
+user_conns = {'u1' : 0, 'u2' : 0, 'u3' : 0, 'u4' : 0, 'u5' : 0}
+
+# Dictionaries/Lists for Tweets
 tweets_by_user = {'u1' : [], 'u2' : [], 'u3' : [], 'u4' : [], 'u5' : []}
 tweets_by_hashtag = defaultdict(list)
-#TODO dictionary for offline tweets, move to TBU/TBH when user logs on?
-# No. All generated tweets get put into the TBU and TBH dicts. Only if a user is offline
-# and a subscription of his gets a tweet should the tweet be added to the offline dict.
+offline_tweets = {'u1' : [], 'u2' : [], 'u3' : [], 'u4' : [], 'u5' : []} # tweets by u1's subscriptions while u1 was offline.
+
+
+
 
 def printalltweetsbyuser(): #debug
     for key in tweets_by_user:
@@ -41,6 +45,14 @@ def printalltweetsbyht(): #debug
         for tweet in tweets_by_hashtag[key]:
             print tweet
 
+def viewsubs(): #debug
+    for key in user_subs:
+        print 'subs for user ' + key + ':'
+        for sub in user_subs[key]:
+            print sub
+
+def isonline(user):
+    return online_users[user]
 
 
 def validate_login(info):
@@ -69,7 +81,8 @@ def login(conn):
 
     this_user = validate_login(data)
     if this_user is not False:
-        reply = 'Welcome =) You have 0  new messages\n'
+        reply = 'Welcome =) You have ' + str(len(offline_tweets[this_user])) + ' new messages\n'
+        user_conns[this_user] = conn
         ret = this_user
     else:
         reply = 'User not found. Closing connection'
@@ -79,15 +92,47 @@ def login(conn):
     return ret
 
 def menu(conn):
-    msg = '\nChoose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Logout\n\n Type \'m\' to bring up this menu.' # TODO 'm' to bring up menu
+    msg = '\nChoose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Logout\n\n'
     conn.sendall(msg) # send menu to client.
     data = conn.recv(1024) # get reply from client.
     return data
 
+def add_sub(user, conn):
+    selected_user = 'null_user'
+    conn.sendall('Which user would you like to add?')
+    selected_user = conn.recv(1024)
+    user_subs[user].append(selected_user)
+    print 'added user ' + selected_user
+
+def remove_sub(user, conn):
+    current_subs = user_subs[user]
+    conn.sendall('Choose a user' + ''.join(current_subs))
+    user_to_remove = conn.recv(1024)
+    user_subs[user].remove(user_to_remove)
+
+def edit_subs(user, conn):
+    conn.sendall('\nAdd (a) or remove (r) a subscription?\n')    # ask client, add or remove a sub?
+    reply = conn.recv(1024)
+    if reply == 'a':
+        add_sub(user, conn)
+    else:
+        remove_sub(user, conn)
+
+
 def post_a_tweet(user, conn):
-# TODO tweet at a user and hashtags
-# TODO also, offline tweets
     tweet = conn.recv(1024) # recv tweet from client
+   
+    #TODO check user_subs for user. For each offline user who subs to this user, also store the tweet in that user's offline tweet dict.
+    for key in user_subs:
+        if key == user:
+            continue # user can't subscribe to themself
+        elif isonline(key) is False:
+            print key + ' is offline.'
+            for sub in user_subs[key]:
+                if sub == user: # if a user is subscribed to this user
+                    print key + ' is offline and subscribed to ' + user
+                    offline_tweets[key].append(tweet)
+
     tweet = user + ': ' + tweet # prefix tweet with the user who generated it.
     hashtag = conn.recv(1024) # recv hashtag from client
     print 'New tweet/hashtag: ' + tweet + '/' + hashtag
@@ -111,7 +156,6 @@ def hashtag_search(conn): # sends to client at connection conn a list of tweets 
     else:
         conn.sendall(''.join(tweets))
     
-
 # Socket creation, bind, listen
 HOST = ''   # Symbolic name meaning all available interfaces
 PORT = 8889 # Arbitrary non-privileged port
@@ -152,8 +196,7 @@ def clientthread(conn):
             reply = client_command  + ' ...OK\n'
             conn.sendall(reply)
         elif client_command == '2': # edit subscriptions
-            reply = client_command  + ' ...OK\n'
-            conn.sendall(reply)
+            edit_subs(this_user, conn)
         elif client_command == '3': # post a tweet
             post_a_tweet(this_user, conn)
         elif client_command == '4': # hastag search
@@ -169,6 +212,11 @@ def clientthread(conn):
             printalltweetsbyuser() # debug
         elif client_command == 'pbh':
             printalltweetsbyht() # debug
+        elif client_command == 'vs':
+            viewsubs() #debug
+        else:
+            conn.sendall('Invalid option')
+            
 
 #now keep talking with the client
 while 1:
