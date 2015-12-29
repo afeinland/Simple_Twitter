@@ -2,6 +2,7 @@
 
 import socket   #for sockets
 import sys  #for exit
+import select
 
 #create an INET, STREAMing socket
 try:
@@ -46,6 +47,7 @@ def login():
         sys.exit()
 
     reply = s.recv(4096) # recv login reply from server
+    print 'login reply: ' + reply
 
 def post_a_tweet():
     tweet = raw_input('Tweet text: ')
@@ -82,15 +84,20 @@ def edit_subs():
         remove_sub()
 
 
+def view_offline_msgs():
+    msgs = s.recv(4096)
+    print msgs
+
 login()
 
 while 1:
     # wait for new message from server.
     reply = s.recv(4096)
-    print reply
+    print 'reply: ' + reply
 
     if reply == 'Goodbye!':
         break;
+
 
     # send input to server
     user_input = raw_input('Option: ')
@@ -99,15 +106,23 @@ while 1:
     # do local work based on menu option. Server should be waiting for
         # client to send the appropriate data given the selected menu option.
     if user_input == '1': # view offline messages
-        continue
+        view_offline_msgs()
     elif user_input == '2': # edit subscriptions
         edit_subs()
     elif user_input == '3': # post a tweet
         post_a_tweet()
     elif user_input == '4': # hashtag search
         hashtag_search()
-    elif user_input == '5': # logout
+    elif user_input == '5':
+        tweet = s.recv(4096)
+        print tweet
+    elif user_input == '6': # logout
         print 'Logging out'
+    elif user_input == 'pbu' or user_input == 'pbh' or user_input == 'vs': # debug
+        continue
+    elif user_input == 'messagecount':
+        cnt = s.recv(4096)
+        print cnt
     else:
         reply = s.recv(4096)
         print reply

@@ -4,8 +4,6 @@ from thread import *
 from collections import defaultdict
 
 
-
-
 # User accounts
 u1 = 'user1'
 p1 = 'pass1'
@@ -54,7 +52,6 @@ def viewsubs(): #debug
 def isonline(user):
     return online_users[user]
 
-
 def validate_login(info):
     if info == u1+p1:
         online_users['u1'] = True
@@ -82,17 +79,19 @@ def login(conn):
     this_user = validate_login(data)
     if this_user is not False:
         reply = 'Welcome =) You have ' + str(len(offline_tweets[this_user])) + ' new messages\n'
+        print reply
+        conn.sendall(reply)
         user_conns[this_user] = conn
         ret = this_user
     else:
         reply = 'User not found. Closing connection'
+        conn.sendall(reply)
         ret = False
 
-    conn.sendall(reply)
     return ret
 
 def menu(conn):
-    msg = '\nChoose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Logout\n\n'
+    msg = '\nChoose an option:\n1 - View Offline Messsages\n2 - Edit Subscriptions\n3 - Post a Message\n4 - Hashtag Search\n5 - Refresh Tweets\n6 - Logout\n\n'
     conn.sendall(msg) # send menu to client.
     data = conn.recv(1024) # get reply from client.
     return data
@@ -126,12 +125,18 @@ def post_a_tweet(user, conn):
     for key in user_subs:
         if key == user:
             continue # user can't subscribe to themself
-        elif isonline(key) is False:
+        elif isonline(key) is False: # user is offline
             print key + ' is offline.'
             for sub in user_subs[key]:
                 if sub == user: # if a user is subscribed to this user
                     print key + ' is offline and subscribed to ' + user
                     offline_tweets[key].append(tweet)
+        elif isonline(key) is True: # user is online
+            print key + ' is online.'
+            for sub in user_subs[key]:
+                if sub == user:
+                    print key + ' is online and subscriber to ' + user
+                    user_conns[key].sendall('New tweet: ' +  tweet) # send tweet to user
 
     tweet = user + ': ' + tweet # prefix tweet with the user who generated it.
     hashtag = conn.recv(1024) # recv hashtag from client
@@ -156,6 +161,19 @@ def hashtag_search(conn): # sends to client at connection conn a list of tweets 
     else:
         conn.sendall(''.join(tweets))
     
+
+def view_offline_msgs(user):
+    user_conns[user].sendall(str('Offline Tweets:\n'.join(offline_tweets[user])))
+
+
+
+def msg_cnt():
+    num_tweets = 0
+    for key in tweets_by_user:
+        for tweet in tweets_by_user[key]:
+            num_tweets += 1
+    return num_tweets
+
 # Socket creation, bind, listen
 HOST = ''   # Symbolic name meaning all available interfaces
 PORT = 8889 # Arbitrary non-privileged port
@@ -177,12 +195,12 @@ print 'Socket bind complete'
 s.listen(10)
 print 'Socket now listening'
 
-
 def clientthread(conn):
     # Client login
     conn.send('Welcome to the server. Please log in.\n') #send only takes string
     this_user = login(conn)
     if this_user is False:
+        print 'invalid user'
         conn.close()
         return
     print this_user + ' logged in'
@@ -193,15 +211,14 @@ def clientthread(conn):
         client_command = menu(conn)
 
         if client_command == '1': # view offline messages
-            reply = client_command  + ' ...OK\n'
-            conn.sendall(reply)
+            view_offline_msgs(this_user)
         elif client_command == '2': # edit subscriptions
             edit_subs(this_user, conn)
         elif client_command == '3': # post a tweet
             post_a_tweet(this_user, conn)
         elif client_command == '4': # hastag search
             hashtag_search(conn)
-        elif client_command == '5': # logout
+        elif client_command == '6': # logout
             print this_user + ' logged out'
             reply = "Goodbye!"
             online_users[this_user] = False
@@ -214,6 +231,8 @@ def clientthread(conn):
             printalltweetsbyht() # debug
         elif client_command == 'vs':
             viewsubs() #debug
+        elif client_command == 'messagecount':
+            conn.sendall(str(msg_cnt()))
         else:
             conn.sendall('Invalid option')
             
